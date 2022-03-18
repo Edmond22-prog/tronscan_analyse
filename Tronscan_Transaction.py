@@ -1,28 +1,45 @@
-import pandas as pd
+import requests
 
+# Compte dans lequel on doit travailler
+account = "TE7PfgeMuivv9UXkKTrGXinjfmfqE9mZyd"
+# API renvoyant les 40 dernieres transaction du compte
+url = "https://apilist.tronscan.org/api/transaction?sort=-timestamp&count=true&limit=40&start=0&address=TE7PfgeMuivv9UXkKTrGXinjfmfqE9mZyd"
 
-df = pd.read_csv("export.csv", sep=",")
-# Montant total des transactions
-print(df["quant"].sum())
+# Reponse a la requete envoye au serveur
+response = requests.get(url)
 
-# Recuperation des differents block de transaction
-blocks = df["block"].unique()
-# print(blocks)
+# Transformation du contenu l'information recu depuis le serveur en format json
+content = response.json()
 
-# Recuperation des donnees 'from_address', 'to_address' et 'quant' ou le block de transaction
-# est egale un premier block de notre liste de blocks
-# data = df.loc[df["block"] == blocks[0], ["from_address", "to_address", "quant"]]
-# for i in range(len(data)):
-#     print(data["from_address"][i], data["to_address"][i], data["quant"][i],)
+# Recuperation des donnees du contenu
+datas = content['data']
 
-for block in blocks:
-    data = df.loc[df["block"] == block, ["from_address", "to_address", "quant"]]
-    print(f"Transaction du block {block} \n")
-    print(data)
-    # for i in range(len(data)):
-    #     print("{} ==> {}, montant : {}".format(data['from_address'][i], data['to_address'][i], data['quant'][i]))
-    # print("\n")
+usdt_transactions = []
 
-# print(len(df["from_address"].unique()))
-# print(len(df["to_address"].unique()))
-# print(len(df["block"].unique()))
+# Remarque: toutes les transactions USDT, dans la cle 'contractData' (dont la valeur est un dictionnaire) ont
+# une cle interne 'data'
+# On va recuperer ces transactions la
+for data in datas:
+    # Recuperation de la valeur (dictionnaire) contenu dans la cle 'contractData'
+    item = data['contractData']
+    try:
+        # On teste s'il y a une cle interne 'data'
+        test = item['data']
+    except:
+        # En cas d'absence, on continue a la donnee suivante
+        continue
+    else:
+        # En cas de presence, on la stocke dans la liste
+        usdt_transactions.append(data)
+
+total_amount_transaction = 0
+
+# On calcule ici le montant total des transactions USDT
+for data in usdt_transactions:
+    total_amount_transaction += float(data['amount'])
+print(f"Total amount of USDT transaction : {total_amount_transaction}\n")
+
+# Liste des transactions justifiants ce montant total
+for data in usdt_transactions:
+    print(f"{data['ownerAddress']} ==> {data['toAddress']}, amount : {data['amount']}")
+print("\n")
